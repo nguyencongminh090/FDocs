@@ -18,21 +18,20 @@
 
 ---
 
-## Phase 1 — Database Schema 🔄 IN PROGRESS
+## Phase 1 — Database Schema ✅ DONE
 
 **Worker**: Database Worker (`/as-db`)
 
-**Input**: PRD.md v1.3 — đặc biệt các bảng: `users`, `documents`, `chunks`, `analysis_results`, `qa_history`
-
 **Tasks:**
-- [ ] Thiết kế ERD đầy đủ
-- [ ] Viết SQL migration files (Alembic hoặc plain SQL)
-- [ ] Enable pgvector extension
-- [ ] Định nghĩa indexes (pgvector HNSW/IVFFlat cho `chunks.embedding`)
+- [x] Thiết kế ERD đầy đủ (Mermaid)
+- [x] Viết SQL migration file (plain SQL)
+- [x] Enable pgvector + pgcrypto extension
+- [x] HNSW index trên `chunks.embedding` (cosine, m=16, ef_construction=64)
+- [x] Auto-update trigger cho `updated_at`
 
-**Output cần có:**
-- `docs/schema.md` — ERD dạng text/Mermaid
-- `backend/migrations/` — migration files
+**Output artifacts:**
+- `docs/schema.md` — ERD + chi tiết từng bảng + index table
+- `backend/migrations/0001_initial_schema.sql` — migration file đầy đủ
 
 ---
 
