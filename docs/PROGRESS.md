@@ -35,10 +35,24 @@
 
 ---
 
-## Phase 2 — Backend API ⏳ PENDING
+## Phase 2 — Backend API ✅ DONE
 
-**Worker**: Backend Worker (`/as-backend`)  
-**Chờ**: Phase 1 hoàn thành
+**Worker**: Backend Worker (`/as-backend`)
+
+**Tasks:**
+- [x] Cấu trúc FastAPI theo layer (routes / services / repositories / middlewares)
+- [x] Auth: register, login, refresh, logout (JWT + httpOnly cookie)
+- [x] Documents CRUD
+- [x] Analysis: summary, keywords, relevance, time-plan, knowledge-graph, related-docs
+- [x] Q&A RAG endpoint + lịch sử
+- [x] Gemini service (chunk, embed, generate, KG structured output)
+- [x] Error handler middleware + CORS config
+
+**Output artifacts:**
+- `backend/app/` — toàn bộ source code FastAPI
+- `backend/requirements.txt`
+- `backend/.env.example`
+- `docs/API.md` — API reference đầy đủ
 
 ---
 
