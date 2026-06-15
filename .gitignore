@@ -107,3 +107,23 @@ Thumbs.db
 .claude/*.local.json
 .agents/*.local.json
 .gemini/
+
+# Python specific
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+ENV/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.ipynb_checkpoints/
+*.egg-info/
+dist/
+build/
+*.spec
+.uv/
+.coverage
+
+htmlcov/

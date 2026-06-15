@@ -200,14 +200,33 @@
 
 ---
 
-## Phase 4 — Testing ⏳ PENDING
+## Phase 4 — Testing ✅ DONE
 
-**Worker**: Tester (`/as-tester`)  
-**Chờ**: Phase 2 + 3 hoàn thành ✅ (tất cả đã xong)
+**Worker**: Tester (`/as-tester`)
+
+**Tasks:**
+- [x] Dựng hạ tầng test backend: `pytest.ini`, `tests/conftest.py` (env + ASGI client + dependency overrides), `requirements-dev.txt`
+- [x] Unit tests backend (40): cosine similarity, JWT token, gemini parsing/chunking, schema/config validation
+- [x] Integration tests backend (27): auth API, qa + SSE stream, library map, documents CRUD — mock DB + Gemini, không cần Postgres/network
+- [x] Dựng hạ tầng test frontend: Vitest + jsdom + Testing Library, `vite.config.js` test block, `src/test/setup.js`, script `npm test`
+- [x] Frontend tests (17): `cn` util, `Button` component, `qaService.streamAsk` SSE parser (mock fetch, buffer qua chunk boundary, unicode decode)
+- [x] Build verified: backend `67 passed`, frontend `17 passed`, `npm run build` ✓
+
+**🐞 Bug phát hiện (đã báo cáo Backend Worker):**
+- **BUG #1 (HIGH)**: `requirements.txt` pin `passlib==1.7.4` nhưng không pin `bcrypt` → clean install lấy `bcrypt==5.0.0` không tương thích → **register/login crash `ValueError` runtime**. Fix: pin `bcrypt==4.0.1` (hoặc nâng passlib). Regression guard: `tests/test_auth_api.py`.
+- **NOTE (LOW)**: `get_gemini_key` dùng `Header(...)` required → thiếu hẳn header trả **422** (không phải 400 như `docs/API.md` ghi). Whitespace-only mới trả 400. Cần đồng bộ doc hoặc đổi sang `Header(None)` + check.
+
+**Output artifacts:**
+- `backend/tests/` — 8 test file + conftest + README
+- `backend/pytest.ini`, `backend/requirements-dev.txt`
+- `frontend/src/**/*.test.{js,jsx}` — 3 test file + `src/test/setup.js`
+- `.gitignore` — thêm Python entries (`.venv`, `__pycache__`, `.pytest_cache`)
+
+**Môi trường:** Python 3.14 mặc định thiếu `ensurepip` → venv dùng `python3.13`. Chi tiết: `backend/tests/README.md`.
 
 ---
 
 ## Phase 5 — DevOps / Deploy ⏳ PENDING
 
 **Worker**: DevOps (`/as-devops`)  
-**Chờ**: Phase 4 pass
+**Chờ**: Phase 4 pass ✅ — sẵn sàng. Lưu ý xử lý BUG #1 (pin bcrypt) trong Docker image trước khi deploy.

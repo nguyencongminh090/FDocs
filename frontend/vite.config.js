@@ -13,4 +13,13 @@ export default defineConfig({
       '/api': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
+  esbuild: {
+    jsx: 'automatic',
+  },
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.js'],
+    css: false,
+  },
 })
