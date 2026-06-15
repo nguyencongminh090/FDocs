@@ -1,6 +1,6 @@
 # FDocs — Product Requirements Document
 
-> **Trạng thái**: v1.2 — **APPROVED** — Sẵn sàng chuyển giao cho Database Worker  
+> **Trạng thái**: v1.3 — **APPROVED** — Sẵn sàng chuyển giao cho Database Worker  
 > **Cập nhật lần cuối**: 2026-06-15  
 > **Product Manager**: AI Agent
 
@@ -190,3 +190,7 @@ Fallback: nếu Gemini không tuân thủ schema → retry tối đa 2 lần →
 | 1 | KG Visualization library | Cytoscape.js |
 | 2 | Vector Store | pgvector (persistent, trong PostgreSQL) |
 | 3 | Related Docs algorithm | Embedding similarity (cosine) giữa doc hiện tại và library |
+| 4 | Chunks storage model | Bảng `chunks` riêng: `chunks(id, document_id, content, embedding vector(768), chunk_index)` — bắt buộc cho pgvector RAG retrieval |
+| 5 | KG storage | JSONB blob trong column `kg` của `analysis_results` — đủ cho v1 vì Cytoscape.js load toàn bộ graph |
+| 6 | Time Plan section detection | AI regex detect headings (`^#{1,3}`, `CHAPTER`, `Chương`, `\d+\.`) → fallback chia đều theo word count nếu không tìm được heading |
+| 7 | Email verification | Bỏ qua v1 — login ngay sau register; thêm v2 nếu cần |
