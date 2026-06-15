@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { analysisService } from '@/services/analysis'
 import { Button } from '@/components/ui/Button'
 
+const SKELETON_WIDTHS = ['92%', '85%', '78%', '88%', '72%', '60%']
+
 export function SummaryPanel({ docId, cached, onUpdate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -29,15 +31,15 @@ export function SummaryPanel({ docId, cached, onUpdate }) {
       </div>
 
       {loading && (
-        <div className="space-y-2 animate-pulse">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="h-3 rounded bg-[var(--bg-muted)]" style={{ width: `${85 + Math.random() * 15}%` }} />
+        <div className="space-y-2.5">
+          {SKELETON_WIDTHS.map((w, i) => (
+            <div key={i} className="skeleton h-3.5" style={{ width: w }} />
           ))}
         </div>
       )}
 
       {!loading && cached && (
-        <div className="prose-reading rounded-xl bg-[var(--bg-muted)] p-5 leading-relaxed text-[var(--text-primary)]">
+        <div className="prose-reading rounded-xl bg-[var(--bg-muted)] p-5 text-[var(--text-primary)] animate-page-in">
           {cached}
         </div>
       )}
@@ -46,7 +48,7 @@ export function SummaryPanel({ docId, cached, onUpdate }) {
         <p className="text-sm text-[var(--text-muted)]">Nhấn "Tạo tóm tắt" để phân tích tài liệu.</p>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>}
     </div>
   )
 }

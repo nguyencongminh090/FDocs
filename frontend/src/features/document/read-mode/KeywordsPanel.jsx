@@ -3,6 +3,8 @@ import { analysisService } from '@/services/analysis'
 import { Button } from '@/components/ui/Button'
 import { Badge } from '@/components/ui/Badge'
 
+const SKELETON_WIDTHS = [72, 88, 64, 96, 80, 68, 92, 76, 84, 60, 88, 70]
+
 export function KeywordsPanel({ docId, cached, onUpdate }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -31,16 +33,22 @@ export function KeywordsPanel({ docId, cached, onUpdate }) {
 
       {loading && (
         <div className="flex flex-wrap gap-2">
-          {[...Array(12)].map((_, i) => (
-            <div key={i} className="h-6 w-20 rounded-full bg-[var(--bg-muted)] animate-pulse" />
+          {SKELETON_WIDTHS.map((w, i) => (
+            <div key={i} className="skeleton h-6 rounded-full" style={{ width: `${w}px` }} />
           ))}
         </div>
       )}
 
       {!loading && cached && (
         <div className="flex flex-wrap gap-2">
-          {cached.map((kw) => (
-            <Badge key={kw} className="text-sm py-1 px-3">{kw}</Badge>
+          {cached.map((kw, i) => (
+            <Badge
+              key={kw}
+              className="animate-tag-in text-sm py-1 px-3"
+              style={{ animationDelay: `${i * 40}ms` }}
+            >
+              {kw}
+            </Badge>
           ))}
         </div>
       )}
@@ -49,7 +57,7 @@ export function KeywordsPanel({ docId, cached, onUpdate }) {
         <p className="text-sm text-[var(--text-muted)]">Nhấn "Trích xuất" để lấy từ khóa.</p>
       )}
 
-      {error && <p className="text-sm text-red-500">{error}</p>}
+      {error && <p className="text-sm" style={{ color: 'var(--error)' }}>{error}</p>}
     </div>
   )
 }

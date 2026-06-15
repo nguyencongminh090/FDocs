@@ -5,6 +5,7 @@ export function Card({ className, children, ...props }) {
     <div
       className={cn(
         'rounded-xl border border-[var(--border)] bg-[var(--bg-surface)] shadow-sm',
+        props.onClick && 'cursor-pointer hover:-translate-y-0.5 hover:shadow-md transition-shadow duration-150',
         className,
       )}
       {...props}
