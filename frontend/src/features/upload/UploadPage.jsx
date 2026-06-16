@@ -7,48 +7,33 @@ import { documentService } from '@/services/documents'
 import { useGeminiKey } from '@/context/GeminiKeyContext'
 import { Button } from '@/components/ui/Button'
 import { Input } from '@/components/ui/Input'
-import { Card, CardContent } from '@/components/ui/Card'
 
-const STEPS = ['idle', 'parsing', 'uploading', 'done']
-const CHUNK_SIZE = 512
 // Mirrors backend MAX_EXTRACTED_TEXT_CHARS — reject oversized docs client-side before
 // a wasted parse→upload round-trip that the server would 422.
 const MAX_EXTRACTED_TEXT_CHARS = 1_000_000
 
-function estimateEmbedSeconds(text) {
-  const n = Math.ceil(text.length / CHUNK_SIZE)
-  if (n <= 30) return 5
-  const [batchSize, delay] = n <= 60 ? [15, 5] : [10, 10]
-  return (Math.ceil(n / batchSize) - 1) * delay + 5
-}
-
-function formatDuration(s) {
-  if (s < 60) return `~${s} giây`
-  const m = Math.floor(s / 60)
-  const rem = s % 60
-  return rem > 0 ? `~${m} phút ${rem} giây` : `~${m} phút`
+// Server-reported pipeline steps → user-facing label.
+const STEP_LABELS = {
+  chunking: 'Đang chia nhỏ tài liệu...',
+  embedding: 'Đang tạo embeddings...',
+  saving: 'Đang lưu tài liệu...',
+  done: 'Hoàn tất',
 }
 
 export function UploadPage() {
   const { hasKey } = useGeminiKey()
   const navigate = useNavigate()
   const inputRef = useRef(null)
+  const cancelRef = useRef(null)
   const [file, setFile] = useState(null)
   const [title, setTitle] = useState('')
-  const [step, setStep] = useState('idle')
-  const [progress, setProgress] = useState('')
+  // idle → parsing (local) → processing (server SSE) → done
+  const [phase, setPhase] = useState('idle')
+  const [statusLabel, setStatusLabel] = useState('')
+  const [percent, setPercent] = useState(0)
   const [error, setError] = useState('')
-  const [estimatedSeconds, setEstimatedSeconds] = useState(null)
-  const [remaining, setRemaining] = useState(null)
 
-  useEffect(() => {
-    if (step !== 'uploading' || estimatedSeconds === null) return
-    setRemaining(estimatedSeconds)
-    const id = setInterval(() => {
-      setRemaining((r) => (r > 0 ? r - 1 : 0))
-    }, 1000)
-    return () => clearInterval(id)
-  }, [step, estimatedSeconds])
+  useEffect(() => () => cancelRef.current?.(), [])
 
   const handleFile = (f) => {
     const ext = f.name.split('.').pop().toLowerCase()
@@ -69,17 +54,18 @@ export function UploadPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!file) return
+    if (!file || phase !== 'idle') return
     setError('')
+    setPercent(0)
 
     try {
-      setStep('parsing')
+      setPhase('parsing')
+      setStatusLabel('Đang đọc file...')
       const ext = file.name.split('.').pop().toLowerCase()
-      setProgress('Đang đọc file...')
       const parsed = ext === 'pdf' ? await parsePdf(file) : await parseDocx(file)
 
       if (parsed.extractedText.length > MAX_EXTRACTED_TEXT_CHARS) {
-        setStep('idle')
+        setPhase('idle')
         setError(
           `Tài liệu quá lớn (${parsed.extractedText.length.toLocaleString('vi-VN')} ký tự). ` +
           `Giới hạn ${MAX_EXTRACTED_TEXT_CHARS.toLocaleString('vi-VN')} ký tự — hãy tách nhỏ tài liệu.`,
@@ -87,11 +73,9 @@ export function UploadPage() {
         return
       }
 
-      setStep('uploading')
-      const secs = estimateEmbedSeconds(parsed.extractedText)
-      setEstimatedSeconds(secs)
-      setProgress('Đang tạo embeddings và lưu...')
-      const doc = await documentService.create({
+      setPhase('processing')
+      setStatusLabel('Đang khởi tạo xử lý...')
+      const { job_id } = await documentService.create({
         title: title.trim() || file.name,
         file_type: ext,
         extracted_text: parsed.extractedText,
@@ -99,10 +83,24 @@ export function UploadPage() {
         page_count: parsed.pageCount ?? null,
       })
 
-      setStep('done')
-      setTimeout(() => navigate(`/document/${doc.id}`), 800)
+      cancelRef.current = documentService.streamProgress(job_id, {
+        onProgress: ({ step, progress }) => {
+          if (typeof progress === 'number') setPercent(progress)
+          if (step && STEP_LABELS[step]) setStatusLabel(STEP_LABELS[step])
+        },
+        onDone: ({ doc_id }) => {
+          setPhase('done')
+          setPercent(100)
+          if (doc_id) setTimeout(() => navigate(`/document/${doc_id}`), 600)
+          else setError('Xử lý xong nhưng không nhận được mã tài liệu.')
+        },
+        onError: ({ detail }) => {
+          setPhase('idle')
+          setError(detail || 'Xử lý tài liệu thất bại. Thử lại sau.')
+        },
+      })
     } catch (err) {
-      setStep('idle')
+      setPhase('idle')
       setError(err.response?.data?.detail ?? 'Upload thất bại. Kiểm tra Gemini Key.')
     }
   }
@@ -117,6 +115,9 @@ export function UploadPage() {
       </div>
     )
   }
+
+  const busy = phase !== 'idle' && phase !== 'done'
+  const barWidth = phase === 'processing' ? percent : phase === 'parsing' ? 8 : 0
 
   return (
     <div className="max-w-xl mx-auto px-4 py-10">
@@ -161,36 +162,31 @@ export function UploadPage() {
 
         {error && <p className="text-sm text-[var(--error)]">{error}</p>}
 
-        {step !== 'idle' && step !== 'done' && (
+        {busy && (
           <div className="rounded-lg bg-[var(--bg-muted)] px-4 py-3 text-sm text-[var(--text-muted)]">
             <div className="flex items-center justify-between gap-2">
               <div className="flex items-center gap-2">
                 <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent shrink-0" />
-                {progress}
+                {statusLabel}
               </div>
-              {step === 'uploading' && remaining !== null && (
-                <span className="text-xs shrink-0">
-                  {remaining > 0
-                    ? <><span className="text-[var(--text-muted)]">Còn </span><span className="font-medium text-[var(--text-primary)]">{formatDuration(remaining)}</span></>
-                    : <span className="font-medium text-[var(--accent)]">Sắp xong...</span>
-                  }
-                </span>
+              {phase === 'processing' && (
+                <span className="text-xs font-medium text-[var(--text-primary)] shrink-0">{percent}%</span>
               )}
             </div>
             <div className="mt-2 h-1 rounded-full bg-[var(--border)] overflow-hidden">
               <div
                 className="h-full bg-[var(--accent)] transition-all duration-500"
-                style={{ width: step === 'parsing' ? '40%' : '85%' }}
+                style={{ width: `${barWidth}%` }}
               />
             </div>
           </div>
         )}
 
-        {step === 'done' && (
+        {phase === 'done' && (
           <p className="text-sm text-[var(--success)] font-medium">✓ Hoàn thành — đang chuyển hướng...</p>
         )}
 
-        <Button type="submit" disabled={!file || step !== 'idle'} loading={step !== 'idle' && step !== 'done'}>
+        <Button type="submit" disabled={!file || busy} loading={busy}>
           Xử lý tài liệu
         </Button>
       </form>
