@@ -1,6 +1,6 @@
 # FDocs — Progress Tracker
 
-> Cập nhật lần cuối: 2026-06-16
+> Cập nhật lần cuối: 2026-06-17
 
 ---
 
@@ -412,3 +412,36 @@ docker compose up -d
 **Còn lại:**
 - Multi-worker: job store cần shared bus (Redis pub/sub) — hiện single-worker.
 - Cảnh báo (chưa fix): `genai.configure` global race key BYOK (escalate, chờ quyết định kiến trúc).
+
+---
+
+## Phase 10 — UI Rendering Improvements 🔄 IN PROGRESS
+
+**Worker**: Frontend Worker (`/as-frontend`)
+
+**Input**: Approved spec từ PM (2026-06-17). Screenshot app tại `play3cr.dpdns.org` cho thấy 2 vấn đề UX.
+
+**Tasks:**
+
+### Feature 1 — Markdown Rendering cho LLM Output
+- [ ] Cài `react-markdown` + `remark-gfm`
+- [ ] `SummaryPanel.jsx` — bọc summary text bằng `<ReactMarkdown>`
+- [ ] `QAPanel.jsx` — render markdown cho answer của từng Q&A item
+- [ ] `RelevancePanel.jsx` — render explanation text
+- [ ] `TimePlanPanel.jsx` — render nếu có markdown
+
+### Feature 2 — PDF Viewer (pdf.js canvas)
+- [ ] `utils/pdf-store.js` (mới) — IndexedDB helpers: `savePdf(docId, arrayBuffer)`, `loadPdf(docId)`, `deletePdf(docId)`
+- [ ] `UploadPage.jsx` — sau khi nhận `doc_id` từ SSE `done` event, gọi `savePdf(doc_id, arrayBuffer)` (giữ file trong memory từ lúc parse)
+- [ ] `components/PdfViewer.jsx` (mới) — load từ IndexedDB, render từng trang qua pdf.js canvas, scroll infinite, fallback graceful nếu không tìm thấy
+- [ ] `DocumentPage.jsx` — thay "NỘI DUNG VĂN BẢN" text dump bằng `<PdfViewer docId={doc.id} fileType={doc.file_type} fallbackText={doc.extracted_text} />`
+
+**Out of scope:**
+- DOCX rendering (text fallback)
+- Re-upload để xem lại PDF sau khi cache bị xóa
+- Syntax highlighting cho code block
+
+**Ràng buộc kỹ thuật:**
+- `pdfjs-dist@6.0.227` đã có — không cài thêm
+- IndexedDB key: `pdf-<doc_id>`
+- DOCX và trường hợp IndexedDB miss → fallback extracted text, không crash

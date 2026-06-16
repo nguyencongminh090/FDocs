@@ -19,6 +19,7 @@
 | `/full-stack-build` | Quy trình 6 phase build từ ý tưởng đến deploy |
 | `/as-pm` | Kích hoạt vai trò Product Manager |
 | `/as-researcher` | Kích hoạt vai trò Research Worker |
+| `/as-prompt-eng` | Kích hoạt vai trò Prompt Engineering Worker |
 | `/as-designer` | Kích hoạt vai trò Designer Worker |
 | `/as-frontend` | Kích hoạt vai trò Frontend Worker |
 | `/as-backend` | Kích hoạt vai trò Backend Worker |
