@@ -55,6 +55,7 @@ export function CommandPalette({ docId, onAction }) {
             <Command.Group heading={<span className="px-4 text-xs text-[var(--text-muted)] font-medium">Điều hướng</span>}>
               <PaletteItem onSelect={() => { setOpen(false); navigate('/library') }}>Đến Library</PaletteItem>
               <PaletteItem onSelect={() => { setOpen(false); navigate('/upload') }}>Upload tài liệu mới</PaletteItem>
+              <PaletteItem onSelect={() => { setOpen(false); navigate('/settings/api-key') }}>Cài đặt Gemini API Key</PaletteItem>
             </Command.Group>
           </Command.List>
         </Command>

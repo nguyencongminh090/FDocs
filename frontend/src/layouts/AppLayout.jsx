@@ -77,24 +77,24 @@ export function AppLayout() {
         </nav>
 
         <div className="p-2 border-t border-[var(--border)] flex flex-col gap-1 shrink-0">
-          {!hasKey && !collapsed && (
-            <NavLink
-              to="/settings/api-key"
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-xs text-amber-600 bg-amber-50 hover:bg-amber-100 font-medium"
-            >
-              <Key size={14} />
-              Chưa có Gemini Key
-            </NavLink>
-          )}
-          {!hasKey && collapsed && (
-            <NavLink
-              to="/settings/api-key"
-              title="Chưa có Gemini Key"
-              className="flex items-center justify-center rounded-lg p-2 text-amber-600 bg-amber-50 hover:bg-amber-100"
-            >
-              <Key size={16} />
-            </NavLink>
-          )}
+          <NavLink
+            to="/settings/api-key"
+            title={collapsed ? (hasKey ? 'Gemini Key' : 'Chưa có Gemini Key') : undefined}
+            className={({ isActive }) =>
+              cn(
+                'flex items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors',
+                collapsed && 'justify-center px-0',
+                !hasKey
+                  ? 'text-amber-600 bg-amber-50 hover:bg-amber-100 font-medium'
+                  : isActive
+                    ? 'bg-[var(--accent)] text-[var(--accent-fg)] font-medium'
+                    : 'text-[var(--text-muted)] hover:bg-[var(--bg-muted)] hover:text-[var(--text-primary)]',
+              )
+            }
+          >
+            <Key size={16} />
+            {!collapsed && (hasKey ? 'Gemini Key' : 'Chưa có Gemini Key')}
+          </NavLink>
           <button
             onClick={logout}
             title="Đăng xuất"

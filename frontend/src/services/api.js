@@ -28,7 +28,15 @@ api.interceptors.response.use(
   (res) => res,
   async (error) => {
     const original = error.config
-    if (error.response?.status === 401 && !original._retried && _refresh) {
+    // Only retry if the original request carried an Authorization header.
+    // Requests without it (login, register, refresh) must never trigger a
+    // refresh attempt — doing so causes an infinite 401 loop on login failure.
+    if (
+      error.response?.status === 401 &&
+      !original._retried &&
+      _refresh &&
+      original.headers?.Authorization
+    ) {
       original._retried = true
       try {
         const newToken = await _refresh()
