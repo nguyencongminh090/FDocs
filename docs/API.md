@@ -162,10 +162,16 @@ Gợi ý top-3 tài liệu tương đồng nhất trong library dựa trên embe
 **Response**: `text/event-stream`
 
 Mỗi chunk: `data: <JSON-encoded-string>\n\n`  
-Kết thúc: `data: [DONE]\n\n`
+Kết thúc thành công: `data: [DONE]\n\n`
 
-Client phải dùng `fetch` (không phải `EventSource`) để gửi được custom headers.  
-Câu trả lời đầy đủ được lưu vào `qa_history` sau khi stream kết thúc.
+Lỗi giữa stream (status HTTP 200 đã commit nên không đổi được status): server phát **error frame** in-band rồi đóng stream, **không** có `[DONE]`:
+```
+data: {"error": "quota", "detail": "..."}\n\n     # vượt quota Gemini
+data: {"error": "service", "detail": "..."}\n\n   # lỗi Gemini khác
+data: {"error": "server", "detail": "..."}\n\n    # lỗi máy chủ
+```
+Client phải dùng `fetch` (không phải `EventSource`) để gửi được custom headers, và phải xử lý cả `[DONE]` lẫn frame `error`.  
+Câu trả lời chỉ được lưu vào `qa_history` **khi stream hoàn tất trọn vẹn** — stream lỗi/đứt giữa chừng không lưu câu trả lời dở.
 
 ---
 
@@ -232,6 +238,10 @@ QAResponse {
 | 401 | Token không hợp lệ hoặc hết hạn |
 | 404 | Document không tồn tại hoặc không thuộc user |
 | 409 | Email đã được đăng ký |
-| 500 | Lỗi server hoặc Gemini API thất bại |
+| 429 | Vượt quota / rate limit Gemini API (free tier) — đã retry backoff nhưng vẫn bị chặn. Thử lại sau ít phút hoặc dùng tài liệu nhỏ hơn |
+| 502 | Gemini API lỗi (không phải quota): JSON trả về không hợp lệ, nội dung bị bộ lọc an toàn chặn, hoặc lỗi dịch vụ |
+| 500 | Lỗi server nội bộ ngoài dự kiến |
 
 Tất cả lỗi trả về: `{ "detail": "..." }`
+
+**Lưu ý mọi endpoint gọi AI** (documents POST, analyze/*, qa, related): lỗi quota Gemini nhất quán trả **429**, lỗi Gemini khác trả **502** (trước đây một số path rò thành 500). Với endpoint SSE (`qa/stream`), lỗi sau khi stream đã bắt đầu được phát dưới dạng error frame in-band (xem mục Q&A), không phải HTTP status.

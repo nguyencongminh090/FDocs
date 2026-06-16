@@ -282,3 +282,71 @@ cp .env.example .env
 docker compose pull
 docker compose up -d
 ```
+
+---
+
+## Phase 6 — Bug fixes & API Key management (DONE)
+
+**Bug fixes (backend):**
+- `.mjs` MIME type trong `frontend/nginx.conf` — fix pdf.js worker bị block (octet-stream → application/javascript)
+- Null byte (`\x00`) trong `extracted_text` — strip ở schema validator (PostgreSQL UTF-8 từ chối 0x00)
+- Embedding model `text-embedding-004` đã bị Google shut down (14/01/2026) → đổi sang `gemini-embedding-001` + `output_dimensionality=768` (khớp vector(768), tránh HNSW limit 2000)
+- Atomicity: embed chạy TRƯỚC mọi DB write; document + chunks persist trong 1 transaction → không còn document mồ côi khi embedding fail
+- Lỗi Gemini (429 quota / lỗi khác) dịch thành `GeminiQuotaError`/`GeminiServiceError` → HTTP 429/502 message rõ ràng, không lộ stack trace
+
+**API Key management (frontend):**
+- Sidebar: link `/settings/api-key` luôn truy cập được (trước chỉ hiện khi thiếu key), amber khi chưa có key
+- `ApiKeySetupPage`: đổi key + xoá key + hiển thị trạng thái key hiện tại (masked)
+- CommandPalette: thêm action "Cài đặt Gemini API Key"
+- Không cần backend: key thuần client-side (localStorage + header `X-Gemini-Key`, stateless)
+- **Quota view**: đã cân nhắc và BỎ — Google không expose quota còn lại qua API key thường, client không query được realtime
+
+---
+
+## Research — Gemini API Strategy & Risk Audit ✅ DONE
+
+**Worker**: Research Worker (`/as-researcher`)
+
+**Output artifact:**
+- `docs/RESEARCH_api_strategy.md` — audit đầy đủ (đã xác minh đối kháng từng tuyên bố định lượng)
+
+**Phát hiện gốc rễ chính (chưa fix — chờ Backend Worker):**
+- `chunk_size=512` là **512 KÝ TỰ** (không phải token) → doc ~8.000 từ sinh ~106–175 chunk
+- **`generate_summary` là gốc 429**: gọi `N+1` (~150) `generate_content_async` **tuần tự, không throttle/backoff** → vỡ generation RPM (~5–15) + nguy cơ 504 (~2–4 phút)
+- Ingestion (`embed_texts`) sống sót RPM nhờ throttle nhưng **forced-sleep 100–170s** cho doc dài → nguy cơ 504 (đã có item async-job/SSE trong TODO.md)
+- Ánh xạ quota không nhất quán: chỉ embed map `GeminiQuotaError`; `generate_knowledge_graph` nuốt lỗi quota → **500 thay vì 429** + retry 3× không backoff
+- JSON parse trần ở keywords/relevance/time-plan → **500 mờ**; stream Q&A lỗi giữa chừng → 200 cụt + lưu answer dở
+
+**Khuyến nghị (3 giai đoạn):** GĐ1 backoff+jitter (#2) + `Retry-After` (#1) + sửa summary/KG/JSON guard → GĐ2 async job + SSE (BackgroundTasks, chưa Redis) → GĐ3 token-bucket per-key (#4). Để embedding cache (#6) sau cùng.
+
+**Action Items**: xem cuối `docs/RESEARCH_api_strategy.md` (gắn tag `[Backend Worker]` / `[Frontend Worker]` / `[DB Worker]` / `[DevOps Worker]`).
+
+---
+
+## Phase 7 — Backend Rate-Limit Hardening (P0 / Giai đoạn 1) ✅ DONE
+
+**Worker**: Backend Worker (`/as-backend`)
+
+**Input**: `docs/RESEARCH_api_strategy.md` — Action Items P0.
+
+**Tasks:**
+- [x] **Choke point `_call_with_backoff`**: 1 wrapper retry exponential backoff + jitter cho MỌI call Gemini (embed + generation). Persistent 429 → `GeminiQuotaError` (429); non-quota → `GeminiServiceError` (502). Đọc `Retry-After`/`retry_delay` làm cận dưới; bỏ retry nếu server đòi chờ > 12s. `max_retries=2` cho Q&A (NFR <10s).
+- [x] **Viết lại `generate_summary`** (gốc 429 chính): từ `~N+1` call/512-char-chunk → **map-reduce trên segment ~12k ký tự** → còn vài call. Regression test khoá `< 15` call cho doc ~56k ký tự (cũ ~100+).
+- [x] **Fix `generate_knowledge_graph`**: chỉ `except json.JSONDecodeError` (quota KHÔNG còn bị nuốt → 429 đúng); bỏ `return {}` dead code; validate `nodes`/`edges`.
+- [x] **Guard JSON + `response.text`**: keywords/relevance/time-plan bọc `json.loads` + validate type; `_extract_text` bắt `ValueError` (candidate bị safety-block) → 502 thay vì 500 mờ.
+- [x] **Harden `_is_quota_error`**: walk `__cause__` chain (langchain bọc `ResourceExhausted` trong `GoogleGenerativeAIError`).
+- [x] **Stream Q&A** (`qa_service`): phát error frame in-band (`{"error","detail"}`) khi lỗi; **chỉ lưu `qa_history` khi stream hoàn tất** (không lưu answer dở); persist bọc try/except log.
+- [x] **Review đối kháng (3 lens read-only)** → xử lý 2 regression NFR-timing (medium): (1) `embed_query` dùng `max_retries=2` cho Q&A path (trước dùng default 3 → tổng embed+answer có thể vượt NFR <10s); (2) cap `SUMMARY_MAX_SEGMENTS=12` cho summary (map tuần tự + delay có thể vượt NFR <60s với doc rất dài). Cleanup: clamp 1 lần sleep ≤ ceiling; KG structural-invalid fail ngay (không retry-burst); payload cap `MAX_EXTRACTED_TEXT_CHARS=1M` (security.md).
+- [x] Test: **104 passed** (+20 regression test: backoff, retry budget embed_query=2/embed_texts=3, summary call-count + segment cap, KG quota-not-swallowed, JSON validation, extract_text guard, is_quota_error cause-chain, SSE error-frame).
+- [x] `docs/API.md`: thêm 429/502 + format SSE error frame.
+
+**Chưa làm (chuyển giai đoạn sau / worker khác):**
+- P1 `[Backend]`: async job + SSE progress upload (né 504 cho doc dài) — đã có item trong `TODO.md`.
+- P1 `[Frontend]`: xử lý error frame SSE + thông điệp 429/502 trên UI.
+- Cảnh báo (không fix trong P0): `_make_client` dùng `genai.configure` global → nguy cơ race key giữa request đồng thời (BYOK). Cần quyết định kiến trúc riêng (đổi sang client per-call / SDK mới) — escalate, không tự đổi.
+
+**Output artifacts:**
+- `backend/app/services/gemini_service.py` — rewrite: backoff choke point, map-reduce summary, KG fix, JSON/text guards
+- `backend/app/services/qa_service.py` — stream error frame + save-on-complete
+- `backend/tests/test_gemini_service.py` — +regression tests
+- `docs/API.md` — error responses 429/502 + SSE error frame
