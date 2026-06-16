@@ -3,6 +3,7 @@ import json
 import logging
 import random
 import re
+from collections.abc import Callable
 from functools import partial
 
 import google.generativeai as genai
@@ -229,7 +230,14 @@ async def _embed_in_executor(fn, *, max_retries: int = MAX_RETRIES):
     )
 
 
-async def embed_texts(texts: list[str], api_key: str) -> list[list[float]]:
+async def embed_texts(
+    texts: list[str],
+    api_key: str,
+    progress_callback: Callable[[int, int], None] | None = None,
+) -> list[list[float]]:
+    """Embed texts in throttled batches. `progress_callback(done, total)` is invoked
+    after each batch so callers (e.g. the async upload job) can report real progress
+    instead of a time estimate."""
     embeddings_model = GoogleGenerativeAIEmbeddings(model=EMBEDDING_MODEL, google_api_key=api_key)
     batch_size, delay = _compute_batch_params(len(texts))
     all_embeddings: list[list[float]] = []
@@ -239,6 +247,8 @@ async def embed_texts(texts: list[str], api_key: str) -> list[list[float]]:
             partial(embeddings_model.embed_documents, batch, output_dimensionality=EMBEDDING_DIM)
         )
         all_embeddings.extend(batch_embeddings)
+        if progress_callback is not None:
+            progress_callback(len(all_embeddings), len(texts))
         if start + batch_size < len(texts) and delay > 0:
             await asyncio.sleep(delay)
     return all_embeddings

@@ -36,6 +36,12 @@ class DocumentCreateRequest(BaseModel):
         return v
 
 
+class DocumentJobResponse(BaseModel):
+    """Returned by POST /api/documents (202): the upload is processed asynchronously,
+    so the client gets a job handle to watch via GET /api/upload/{job_id}/progress."""
+    job_id: str
+
+
 class DocumentResponse(BaseModel):
     id: uuid.UUID
     title: str

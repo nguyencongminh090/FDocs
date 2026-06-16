@@ -12,7 +12,7 @@ from app.middlewares.error_handler import (
     resource_exhausted_handler,
     unhandled_exception_handler,
 )
-from app.routes import auth, documents, analysis, qa, library
+from app.routes import auth, documents, analysis, qa, library, upload
 from app.services.gemini_service import GeminiQuotaError, GeminiServiceError
 
 logging.basicConfig(level=logging.INFO)
@@ -37,6 +37,7 @@ app.include_router(documents.router)
 app.include_router(analysis.router)
 app.include_router(qa.router)
 app.include_router(library.router)
+app.include_router(upload.router)
 
 
 @app.get("/health")

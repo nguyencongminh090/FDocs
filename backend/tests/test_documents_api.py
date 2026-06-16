@@ -81,7 +81,9 @@ def mock_docs(monkeypatch):
         monkeypatch.setattr(document_service, "ChunkRepository", FakeChunkRepo)
         monkeypatch.setattr(document_service.gemini_service, "chunk_text", lambda t: ["c1"])
 
-        async def fake_embed(texts, key):
+        async def fake_embed(texts, key, progress_callback=None):
+            if progress_callback:
+                progress_callback(len(texts), len(texts))
             return [[0.1, 0.2]]
 
         monkeypatch.setattr(document_service.gemini_service, "embed_texts", fake_embed)
@@ -98,15 +100,28 @@ def _authed():
 
 
 class TestDocumentsCRUD:
-    async def test_create_document_201(self, client, mock_docs):
+    async def test_create_document_202_returns_job_id(self, client, mock_docs, monkeypatch):
+        from app.services import upload_job_service
+
+        captured = {}
+
+        def fake_enqueue(user_id, data, gemini_key):
+            captured["data"] = data
+            captured["gemini_key"] = gemini_key
+            return "job-abc"
+
+        monkeypatch.setattr(upload_job_service, "enqueue", fake_enqueue)
         mock_docs()
         _authed()
         resp = await client.post(
             "/api/documents",
             json={"title": "Test Doc", "file_type": "pdf", "extracted_text": "Nội dung tài liệu."},
         )
-        assert resp.status_code == 201
-        assert resp.json()["title"] == "Test Doc"
+        assert resp.status_code == 202
+        assert resp.json() == {"job_id": "job-abc"}
+        # The BYOK key reaches the job layer (it is never persisted there).
+        assert captured["gemini_key"] == TEST_GEMINI_KEY
+        assert captured["data"]["title"] == "Test Doc"
 
     async def test_list_documents(self, client, mock_docs):
         mock_docs()
@@ -163,8 +178,17 @@ class TestDocumentValidation:
         )
         assert resp.status_code == 403
 
-    async def test_null_bytes_stripped_and_create_succeeds(self, client, mock_docs):
+    async def test_null_bytes_stripped_and_create_succeeds(self, client, mock_docs, monkeypatch):
         """PDF text with null bytes must not reach DB — validator strips them (regression: asyncpg.CharacterNotInRepertoireError)."""
+        from app.services import upload_job_service
+
+        captured = {}
+
+        def fake_enqueue(user_id, data, gemini_key):
+            captured["text"] = data["extracted_text"]
+            return "job-xyz"
+
+        monkeypatch.setattr(upload_job_service, "enqueue", fake_enqueue)
         mock_docs()
         _authed()
         null = chr(0)
@@ -173,7 +197,8 @@ class TestDocumentValidation:
             "/api/documents",
             json={"title": "PDF null byte", "file_type": "pdf", "extracted_text": text_with_nulls},
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 202
+        assert null not in captured["text"]
 
     async def test_only_null_bytes_is_empty_422(self, client, mock_docs):
         """Text consisting only of null bytes is treated as empty after stripping."""
@@ -218,34 +243,36 @@ class TestDocumentTransaction:
         monkeypatch.setattr(ds.gemini_service, "embed_texts", embed_fn)
         return state
 
-    async def test_embed_quota_error_returns_429_without_persisting(self, client, monkeypatch):
+    async def test_embed_quota_error_raises_without_persisting(self, monkeypatch):
+        from app.services.document_service import DocumentService
         from app.services.gemini_service import GeminiQuotaError
 
-        async def quota_boom(texts, key):
+        async def quota_boom(texts, key, progress_callback=None):
             raise GeminiQuotaError("Đã vượt giới hạn quota Gemini API.")
 
         state = self._wire(monkeypatch, quota_boom)
-        _authed()
-        resp = await client.post(
-            "/api/documents",
-            json={"title": "X", "file_type": "pdf", "extracted_text": "nội dung"},
-        )
-        assert resp.status_code == 429
+        with pytest.raises(GeminiQuotaError):
+            await DocumentService(None).create_document(
+                TEST_USER_ID,
+                {"title": "X", "file_type": "pdf", "extracted_text": "nội dung"},
+                TEST_GEMINI_KEY,
+            )
         assert state["doc_created"] is False
         assert state["chunks_created"] is False
 
-    async def test_embed_generic_error_returns_502_without_persisting(self, client, monkeypatch):
+    async def test_embed_generic_error_raises_without_persisting(self, monkeypatch):
+        from app.services.document_service import DocumentService
         from app.services.gemini_service import GeminiServiceError
 
-        async def generic_boom(texts, key):
+        async def generic_boom(texts, key, progress_callback=None):
             raise GeminiServiceError("Không thể tạo embedding từ Gemini API.")
 
         state = self._wire(monkeypatch, generic_boom)
-        _authed()
-        resp = await client.post(
-            "/api/documents",
-            json={"title": "X", "file_type": "pdf", "extracted_text": "nội dung"},
-        )
-        assert resp.status_code == 502
+        with pytest.raises(GeminiServiceError):
+            await DocumentService(None).create_document(
+                TEST_USER_ID,
+                {"title": "X", "file_type": "pdf", "extracted_text": "nội dung"},
+                TEST_GEMINI_KEY,
+            )
         assert state["doc_created"] is False
         assert state["chunks_created"] is False

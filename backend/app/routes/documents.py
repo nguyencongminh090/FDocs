@@ -5,21 +5,29 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.middlewares.auth import get_current_user_id, get_gemini_key
-from app.schemas.document import DocumentCreateRequest, DocumentDetailResponse, DocumentResponse
+from app.schemas.document import (
+    DocumentCreateRequest,
+    DocumentDetailResponse,
+    DocumentJobResponse,
+    DocumentResponse,
+)
+from app.services import upload_job_service
 from app.services.document_service import DocumentService
 
 router = APIRouter(prefix="/api/documents", tags=["documents"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED, response_model=DocumentResponse)
+@router.post("", status_code=status.HTTP_202_ACCEPTED, response_model=DocumentJobResponse)
 async def create_document(
     body: DocumentCreateRequest,
     user_id: uuid.UUID = Depends(get_current_user_id),
     gemini_key: str = Depends(get_gemini_key),
-    db: AsyncSession = Depends(get_db),
 ):
-    doc = await DocumentService(db).create_document(user_id, body.model_dump(), gemini_key)
-    return doc
+    # Chunk + embed (100-170s for large docs) runs in the background to avoid a 504;
+    # the client polls GET /api/upload/{job_id}/progress. The Gemini key is handed to
+    # the in-memory job and never persisted (BYOK).
+    job_id = upload_job_service.enqueue(user_id, body.model_dump(), gemini_key)
+    return DocumentJobResponse(job_id=job_id)
 
 
 @router.get("", response_model=list[DocumentResponse])
