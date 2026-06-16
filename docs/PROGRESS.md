@@ -1,6 +1,6 @@
 # FDocs — Progress Tracker
 
-> Cập nhật lần cuối: 2026-06-15
+> Cập nhật lần cuối: 2026-06-16
 
 ---
 
@@ -226,7 +226,59 @@
 
 ---
 
-## Phase 5 — DevOps / Deploy ⏳ PENDING
+## Phase 4b — Backend Bug Fix ✅ DONE
 
-**Worker**: DevOps (`/as-devops`)  
-**Chờ**: Phase 4 pass ✅ — sẵn sàng. Lưu ý xử lý BUG #1 (pin bcrypt) trong Docker image trước khi deploy.
+**Worker**: Backend Worker (`/as-backend`)
+
+**Bugs đã fix:**
+- [x] **BUG #1 (HIGH)**: Pin `bcrypt==4.0.1` trong `requirements.txt` — tránh `bcrypt==5.0.0` incompatible với `passlib==1.7.4` gây crash register/login
+- [x] **asyncpg bump**: Nâng `asyncpg==0.29.0` → `0.30.0` — 0.29.0 không có wheel cho Python 3.13
+- [x] **NOTE (LOW)**: Đổi `get_gemini_key` từ `Header(...)` → `Header(None)` + manual check — thiếu header giờ trả 400 thay vì 422, đồng bộ với `docs/API.md`
+- [x] Regression: `67 passed` — không có test nào fail
+
+**Output artifacts:**
+- `backend/requirements.txt` — thêm `bcrypt==4.0.1`, bump `asyncpg==0.30.0`
+- `backend/app/middlewares/auth.py` — `get_gemini_key` consistent 400 cho mọi case thiếu/blank key
+
+---
+
+## Phase 5 — DevOps / Deploy ✅ DONE
+
+**Worker**: DevOps (`/as-devops`)
+
+**Tasks:**
+- [x] `backend/Dockerfile` — multi-stage Python 3.13-slim, HEALTHCHECK `/health`
+- [x] `frontend/Dockerfile` — multi-stage Node 20 build + nginx:alpine serve
+- [x] `frontend/nginx.conf` — SPA routing (`try_files`) + `/api/` reverse proxy tới backend + SSE-safe (`proxy_buffering off`)
+- [x] `backend/.dockerignore` + `frontend/.dockerignore` — loại trừ tests/venv/node_modules
+- [x] `docker-compose.yml` — full stack: PostgreSQL (pgvector/pgvector:pg16) + backend + frontend; DB healthcheck; migrations init script mount
+- [x] `.env.example` (root) — tất cả biến cần thiết, không có giá trị thật
+- [x] `.github/workflows/ci.yml` — test-backend (pytest) + test-frontend (vitest + build) trên mọi push/PR
+- [x] `.github/workflows/deploy.yml` — build & push images tới GHCR → SSH deploy `docker compose pull && up -d`
+
+**Output artifacts:**
+- `backend/Dockerfile`
+- `backend/.dockerignore`
+- `frontend/Dockerfile`
+- `frontend/nginx.conf`
+- `frontend/.dockerignore`
+- `docker-compose.yml`
+- `.env.example`
+- `.github/workflows/ci.yml`
+- `.github/workflows/deploy.yml`
+
+**GitHub Secrets cần cấu hình trên repo:**
+- `DEPLOY_HOST` — IP hoặc hostname server
+- `DEPLOY_USER` — SSH user trên server
+- `DEPLOY_SSH_KEY` — private key SSH (server cần public key tương ứng trong `authorized_keys`)
+- `GITHUB_TOKEN` — tự động có sẵn, dùng push GHCR
+
+**Hướng dẫn deploy lần đầu (trên server):**
+```bash
+git clone https://github.com/<user>/fdocs ~/fdocs
+cd ~/fdocs
+cp .env.example .env
+# Điền giá trị thật vào .env
+docker compose pull
+docker compose up -d
+```
