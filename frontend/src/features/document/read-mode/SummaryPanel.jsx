@@ -14,8 +14,8 @@ export function SummaryPanel({ docId, cached, onUpdate }) {
     try {
       const data = await analysisService.summarize(docId)
       onUpdate(data.summary)
-    } catch {
-      setError('Không thể tạo tóm tắt. Kiểm tra Gemini Key.')
+    } catch (err) {
+      setError(err.response?.data?.detail ?? 'Không thể tạo tóm tắt.')
     } finally {
       setLoading(false)
     }

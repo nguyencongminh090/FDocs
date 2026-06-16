@@ -15,8 +15,8 @@ export function KeywordsPanel({ docId, cached, onUpdate }) {
     try {
       const data = await analysisService.keywords(docId)
       onUpdate(data.keywords)
-    } catch {
-      setError('Không thể trích xuất từ khóa.')
+    } catch (err) {
+      setError(err.response?.data?.detail ?? 'Không thể trích xuất từ khóa.')
     } finally {
       setLoading(false)
     }

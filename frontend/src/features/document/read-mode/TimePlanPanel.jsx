@@ -22,8 +22,8 @@ export function TimePlanPanel({ docId, cached, input: cachedInput, onUpdate }) {
       const data = await analysisService.timePlan(docId, { ...form, hours_per_day: Number(form.hours_per_day) })
       setPlan(data.time_plan)
       onUpdate(data.time_plan)
-    } catch {
-      setError('Không thể tạo kế hoạch đọc.')
+    } catch (err) {
+      setError(err.response?.data?.detail ?? 'Không thể tạo kế hoạch đọc.')
     } finally {
       setLoading(false)
     }

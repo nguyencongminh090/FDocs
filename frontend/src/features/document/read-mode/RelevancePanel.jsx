@@ -18,8 +18,8 @@ export function RelevancePanel({ docId, cached, input: cachedInput, onUpdate }) 
       const data = await analysisService.relevance(docId, { goal: form.goal, keywords, topic: form.topic })
       setResult(data)
       onUpdate({ relevance_score: data.relevance_score })
-    } catch {
-      setError('Không thể đánh giá độ phù hợp.')
+    } catch (err) {
+      setError(err.response?.data?.detail ?? 'Không thể đánh giá độ phù hợp.')
     } finally {
       setLoading(false)
     }

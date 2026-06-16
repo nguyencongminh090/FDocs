@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { Upload, FileText } from 'lucide-react'
 import { parsePdf } from '@/utils/pdf-parser'
@@ -10,6 +10,21 @@ import { Input } from '@/components/ui/Input'
 import { Card, CardContent } from '@/components/ui/Card'
 
 const STEPS = ['idle', 'parsing', 'uploading', 'done']
+const CHUNK_SIZE = 512
+
+function estimateEmbedSeconds(text) {
+  const n = Math.ceil(text.length / CHUNK_SIZE)
+  if (n <= 30) return 5
+  const [batchSize, delay] = n <= 60 ? [15, 5] : [10, 10]
+  return (Math.ceil(n / batchSize) - 1) * delay + 5
+}
+
+function formatDuration(s) {
+  if (s < 60) return `~${s} giây`
+  const m = Math.floor(s / 60)
+  const rem = s % 60
+  return rem > 0 ? `~${m} phút ${rem} giây` : `~${m} phút`
+}
 
 export function UploadPage() {
   const { hasKey } = useGeminiKey()
@@ -20,6 +35,17 @@ export function UploadPage() {
   const [step, setStep] = useState('idle')
   const [progress, setProgress] = useState('')
   const [error, setError] = useState('')
+  const [estimatedSeconds, setEstimatedSeconds] = useState(null)
+  const [remaining, setRemaining] = useState(null)
+
+  useEffect(() => {
+    if (step !== 'uploading' || estimatedSeconds === null) return
+    setRemaining(estimatedSeconds)
+    const id = setInterval(() => {
+      setRemaining((r) => (r > 0 ? r - 1 : 0))
+    }, 1000)
+    return () => clearInterval(id)
+  }, [step, estimatedSeconds])
 
   const handleFile = (f) => {
     const ext = f.name.split('.').pop().toLowerCase()
@@ -50,6 +76,8 @@ export function UploadPage() {
       const parsed = ext === 'pdf' ? await parsePdf(file) : await parseDocx(file)
 
       setStep('uploading')
+      const secs = estimateEmbedSeconds(parsed.extractedText)
+      setEstimatedSeconds(secs)
       setProgress('Đang tạo embeddings và lưu...')
       const doc = await documentService.create({
         title: title.trim() || file.name,
@@ -123,9 +151,19 @@ export function UploadPage() {
 
         {step !== 'idle' && step !== 'done' && (
           <div className="rounded-lg bg-[var(--bg-muted)] px-4 py-3 text-sm text-[var(--text-muted)]">
-            <div className="flex items-center gap-2">
-              <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent" />
-              {progress}
+            <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="h-3 w-3 animate-spin rounded-full border-2 border-[var(--accent)] border-t-transparent shrink-0" />
+                {progress}
+              </div>
+              {step === 'uploading' && remaining !== null && (
+                <span className="text-xs shrink-0">
+                  {remaining > 0
+                    ? <><span className="text-[var(--text-muted)]">Còn </span><span className="font-medium text-[var(--text-primary)]">{formatDuration(remaining)}</span></>
+                    : <span className="font-medium text-[var(--accent)]">Sắp xong...</span>
+                  }
+                </span>
+              )}
             </div>
             <div className="mt-2 h-1 rounded-full bg-[var(--border)] overflow-hidden">
               <div
