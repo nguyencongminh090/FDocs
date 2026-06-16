@@ -35,7 +35,7 @@ CHUNK_OVERLAP = 50
 # so embeddings are truncated to 768 via output_dimensionality.
 EMBEDDING_MODEL = "models/gemini-embedding-001"
 EMBEDDING_DIM = 768
-GENERATION_MODEL = "gemini-2.0-flash"
+GENERATION_MODEL = "gemini-2.5-flash"
 
 # Summary uses LARGE segments (not the 512-char retrieval chunks). Re-using the
 # 512-char splitter would fan out ~one generation call per ~462 chars (>100 calls
