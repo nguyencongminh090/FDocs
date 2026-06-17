@@ -41,7 +41,10 @@ class ChunkRepository:
             {"doc_id": str(document_id)},
         )
         row = result.fetchone()
-        return list(row[0]) if row and row[0] is not None else None
+        if not row or row[0] is None:
+            return None
+        raw = row[0]
+        return [float(x) for x in raw.strip("[]").split(",")]
 
     async def get_all_doc_centroids(self, user_id: uuid.UUID) -> list[dict]:
         """Return each document's centroid embedding (avg of all its chunks)."""
@@ -60,7 +63,8 @@ class ChunkRepository:
         for row in result.fetchall():
             d = dict(row._mapping)
             if d["centroid"] is not None:
-                d["centroid"] = list(d["centroid"])
+                raw = d["centroid"]
+                d["centroid"] = [float(x) for x in raw.strip("[]").split(",")]
             rows.append(d)
         return rows
 
@@ -82,6 +86,6 @@ class ChunkRepository:
                 ORDER BY similarity_score DESC
                 LIMIT :top_k
             """),
-            {"embedding": query_embedding, "user_id": str(user_id), "exclude_id": str(exclude_doc_id), "top_k": top_k},
+            {"embedding": "[" + ",".join(str(x) for x in query_embedding) + "]", "user_id": str(user_id), "exclude_id": str(exclude_doc_id), "top_k": top_k},
         )
         return [dict(row._mapping) for row in result.fetchall()]
