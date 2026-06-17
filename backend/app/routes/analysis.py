@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
-from app.middlewares.auth import get_current_user_id, get_gemini_key
+from app.middlewares.auth import get_current_user_id, get_gemini_key, get_response_language
 from app.schemas.analysis import (
     AnalysisResultResponse,
     KGResponse,
@@ -31,9 +31,10 @@ async def summarize(
     doc_id: uuid.UUID,
     user_id: uuid.UUID = Depends(get_current_user_id),
     gemini_key: str = Depends(get_gemini_key),
+    lang: str | None = Depends(get_response_language),
     db: AsyncSession = Depends(get_db),
 ):
-    summary = await AnalysisService(db).summarize(doc_id, user_id, gemini_key)
+    summary = await AnalysisService(db).summarize(doc_id, user_id, gemini_key, lang=lang)
     return SummaryResponse(summary=summary)
 
 
@@ -54,9 +55,10 @@ async def score_relevance(
     body: RelevanceInput,
     user_id: uuid.UUID = Depends(get_current_user_id),
     gemini_key: str = Depends(get_gemini_key),
+    lang: str | None = Depends(get_response_language),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await AnalysisService(db).score_relevance(doc_id, user_id, body.goal, body.keywords, body.topic, gemini_key)
+    result = await AnalysisService(db).score_relevance(doc_id, user_id, body.goal, body.keywords, body.topic, gemini_key, lang=lang)
     return RelevanceResponse(**result)
 
 

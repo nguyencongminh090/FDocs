@@ -25,9 +25,9 @@ class AnalysisService:
         await self._require_doc(doc_id, user_id)
         return await self.analysis_repo.get_by_document(doc_id)
 
-    async def summarize(self, doc_id: uuid.UUID, user_id: uuid.UUID, gemini_key: str) -> str:
+    async def summarize(self, doc_id: uuid.UUID, user_id: uuid.UUID, gemini_key: str, lang: str | None = None) -> str:
         doc = await self._require_doc(doc_id, user_id)
-        summary = await gemini_service.generate_summary(doc.extracted_text, gemini_key)
+        summary = await gemini_service.generate_summary(doc.extracted_text, gemini_key, lang=lang)
         await self.analysis_repo.upsert_field(doc_id, summary=summary)
         return summary
 
@@ -37,9 +37,9 @@ class AnalysisService:
         await self.analysis_repo.upsert_field(doc_id, keywords=keywords)
         return keywords
 
-    async def score_relevance(self, doc_id: uuid.UUID, user_id: uuid.UUID, goal: str, keywords: list[str], topic: str, gemini_key: str) -> dict:
+    async def score_relevance(self, doc_id: uuid.UUID, user_id: uuid.UUID, goal: str, keywords: list[str], topic: str, gemini_key: str, lang: str | None = None) -> dict:
         doc = await self._require_doc(doc_id, user_id)
-        result = await gemini_service.score_relevance(doc.extracted_text, goal, keywords, topic, gemini_key)
+        result = await gemini_service.score_relevance(doc.extracted_text, goal, keywords, topic, gemini_key, lang=lang)
         await self.analysis_repo.upsert_field(
             doc_id,
             relevance_score=result["relevance_score"],

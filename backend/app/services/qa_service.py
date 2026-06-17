@@ -20,7 +20,7 @@ class QAService:
         self.chunk_repo = ChunkRepository(db)
         self.qa_repo = QARepository(db)
 
-    async def ask(self, doc_id: uuid.UUID, user_id: uuid.UUID, question: str, gemini_key: str):
+    async def ask(self, doc_id: uuid.UUID, user_id: uuid.UUID, question: str, gemini_key: str, lang: str | None = None):
         doc = await self.doc_repo.get_by_id(doc_id)
         if not doc or doc.user_id != user_id:
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found")
@@ -29,7 +29,7 @@ class QAService:
         similar_chunks = await self.chunk_repo.get_similar(query_embedding, doc_id, top_k=5)
 
         context = [c.content for c in similar_chunks]
-        answer = await gemini_service.answer_question(question, context, gemini_key)
+        answer = await gemini_service.answer_question(question, context, gemini_key, lang=lang)
 
         sources = [
             {"chunk_id": str(c.id), "chunk_index": c.chunk_index, "excerpt": c.content[:200]}
@@ -38,7 +38,7 @@ class QAService:
         return await self.qa_repo.create(doc_id, question, answer, sources)
 
     async def ask_stream_response(
-        self, doc_id: uuid.UUID, user_id: uuid.UUID, question: str, gemini_key: str
+        self, doc_id: uuid.UUID, user_id: uuid.UUID, question: str, gemini_key: str, lang: str | None = None
     ) -> StreamingResponse:
         doc = await self.doc_repo.get_by_id(doc_id)
         if not doc or doc.user_id != user_id:
@@ -59,7 +59,7 @@ class QAService:
             full_answer_parts: list[str] = []
             completed = False
             try:
-                async for token in gemini_service.answer_question_stream(question, context, gemini_key):
+                async for token in gemini_service.answer_question_stream(question, context, gemini_key, lang=lang):
                     full_answer_parts.append(token)
                     # JSON-encode each token so newlines and special chars are safe in SSE data
                     yield f"data: {json.dumps(token)}\n\n"

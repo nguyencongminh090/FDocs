@@ -76,10 +76,10 @@ def mock_qa(monkeypatch):
         async def fake_embed_query(question, key):
             return [0.1, 0.2, 0.3]
 
-        async def fake_answer(question, context, key):
+        async def fake_answer(question, context, key, **kw):
             return "Đây là câu trả lời."
 
-        async def fake_stream(question, context, key):
+        async def fake_stream(question, context, key, **kw):
             for tok in ["Đây ", "là ", "câu\ntrả lời."]:
                 yield tok
 
@@ -183,7 +183,7 @@ class TestQAStreamError:
         async def fake_embed_query(question, key):
             return [0.1, 0.2, 0.3]
 
-        async def failing_stream(question, context, key):
+        async def failing_stream(question, context, key, **kw):
             yield "Đây "
             yield "là "
             raise gemini_service.GeminiQuotaError("vượt quota")

@@ -48,3 +48,9 @@ def get_gemini_key(x_gemini_key: str | None = Header(None, alias="X-Gemini-Key")
     if not x_gemini_key or not x_gemini_key.strip():
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="X-Gemini-Key header is required")
     return x_gemini_key
+
+
+def get_response_language(x_response_language: str | None = Header(None, alias="X-Response-Language")) -> str | None:
+    if x_response_language in ("vi", "en"):
+        return x_response_language
+    return None

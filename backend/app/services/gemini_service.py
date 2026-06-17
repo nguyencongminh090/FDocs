@@ -302,7 +302,15 @@ def _split_for_summary(text: str) -> list[str]:
     return splitter.split_text(text)
 
 
-async def generate_summary(text: str, api_key: str) -> str:
+def _lang_directive(lang: str | None) -> str:
+    if lang == "vi":
+        return "\nHãy trả lời bằng tiếng Việt."
+    if lang == "en":
+        return "\nPlease respond in English."
+    return ""
+
+
+async def generate_summary(text: str, api_key: str, lang: str | None = None) -> str:
     model = _make_client(api_key)
     segments = _split_for_summary(text)
     if not segments:
@@ -313,6 +321,7 @@ async def generate_summary(text: str, api_key: str) -> str:
             len(segments), SUMMARY_MAX_SEGMENTS,
         )
         segments = segments[:SUMMARY_MAX_SEGMENTS]
+
     def _map_prompt(segment: str) -> str:
         return (
             "Tóm tắt đoạn sau của tài liệu học thuật.\n\n"
@@ -321,6 +330,7 @@ async def generate_summary(text: str, api_key: str) -> str:
             "- Dùng - bullet list cho các điểm chính dưới mỗi heading\n"
             "- Giữ nguyên thuật ngữ kỹ thuật và tên riêng từ tài liệu\n\n"
             f"Nội dung:\n{segment}"
+            + _lang_directive(lang)
         )
 
     if len(segments) == 1:
@@ -349,6 +359,7 @@ async def generate_summary(text: str, api_key: str) -> str:
         "- Loại bỏ nội dung trùng lặp giữa các phần\n"
         "- Sắp xếp theo luồng logic của tài liệu, không phải theo thứ tự các tóm tắt đầu vào\n\n"
         f"Các tóm tắt riêng lẻ:\n{combined}"
+        + _lang_directive(lang)
     )
     final = await _call_with_backoff(
         lambda: model.generate_content_async(reduce_prompt),
@@ -379,7 +390,7 @@ async def extract_keywords(text: str, api_key: str) -> list[str]:
     return data
 
 
-async def score_relevance(text: str, goal: str, keywords: list[str], topic: str, api_key: str) -> dict:
+async def score_relevance(text: str, goal: str, keywords: list[str], topic: str, api_key: str, lang: str | None = None) -> dict:
     model = _make_client(api_key, system_instruction=_SYSTEM_JSON)
     truncated = text[:6000]
     keywords_joined = ", ".join(keywords)
@@ -400,6 +411,7 @@ async def score_relevance(text: str, goal: str, keywords: list[str], topic: str,
         '"explanation": "<2–3 câu: (1) điểm số được cho vì lý do gì, '
         "(2) điểm mạnh của tài liệu với nhu cầu này, "
         '(3) điểm còn thiếu nếu có. Dùng **bold** cho lý do chính.>"}'
+        + _lang_directive(lang)
     )
     response = await _call_with_backoff(
         lambda: model.generate_content_async(prompt), what="đánh giá độ liên quan"
@@ -475,7 +487,7 @@ async def generate_knowledge_graph(text: str, api_key: str) -> dict:
     raise GeminiServiceError("Không thể tạo knowledge graph hợp lệ sau 3 lần thử.") from last_err
 
 
-def _qa_prompt(question: str, context: str) -> str:
+def _qa_prompt(question: str, context: str, lang: str | None = None) -> str:
     return (
         "Trả lời câu hỏi dựa CHỈ VÀO ngữ cảnh được cung cấp dưới đây.\n"
         "Trả lời bằng cùng ngôn ngữ với câu hỏi.\n\n"
@@ -485,20 +497,21 @@ def _qa_prompt(question: str, context: str) -> str:
         "- Độ dài: tối đa 3–4 đoạn ngắn; nếu câu trả lời đơn giản thì 1–2 câu là đủ.\n\n"
         f"Ngữ cảnh:\n{context}\n\n"
         f"Câu hỏi: {question}"
+        + _lang_directive(lang)
     )
 
 
-async def answer_question(question: str, context_chunks: list[str], api_key: str) -> str:
+async def answer_question(question: str, context_chunks: list[str], api_key: str, lang: str | None = None) -> str:
     model = _make_client(api_key)
     context = "\n\n---\n\n".join(context_chunks)
-    prompt = _qa_prompt(question, context)
+    prompt = _qa_prompt(question, context, lang)
     response = await _call_with_backoff(
         lambda: model.generate_content_async(prompt), what="trả lời câu hỏi", max_retries=2
     )
     return _extract_text(response, "trả lời câu hỏi")
 
 
-async def answer_question_stream(question: str, context_chunks: list[str], api_key: str):
+async def answer_question_stream(question: str, context_chunks: list[str], api_key: str, lang: str | None = None):
     """Async generator that yields text tokens as they arrive from Gemini.
 
     Quota/errors mid-stream cannot change the (already-committed) HTTP status, so
@@ -506,7 +519,7 @@ async def answer_question_stream(question: str, context_chunks: list[str], api_k
     into an SSE error frame. No retry: a stream cannot be resumed once started."""
     model = _make_client(api_key)
     context = "\n\n---\n\n".join(context_chunks)
-    prompt = _qa_prompt(question, context)
+    prompt = _qa_prompt(question, context, lang)
     try:
         response = await model.generate_content_async(prompt, stream=True)
         async for chunk in response:
