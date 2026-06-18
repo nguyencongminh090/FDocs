@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { Send, Trash2 } from 'lucide-react'
 import { MarkdownLatex } from '@/components/ui/MarkdownLatex'
+import { EmptyQAArt } from '@/components/illustrations/EmptyArt'
 import { qaService } from '@/services/qa'
 import { Button } from '@/components/ui/Button'
 
@@ -92,8 +93,9 @@ export function QAPanel({ docId }) {
     <div className="flex flex-col h-full gap-0 pt-5 pb-4">
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
         {!hasContent ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-center py-8 px-5">
-            <p className="text-sm text-[var(--text-muted)]">Chưa có câu hỏi nào.</p>
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-center py-8 px-5 decor-dotgrid">
+            <EmptyQAArt size={112} className="text-[var(--accent)] opacity-80 mb-1" />
+            <p className="font-display text-lg text-[var(--text-primary)]">Chưa có câu hỏi nào</p>
             <p className="text-xs text-[var(--text-muted)] opacity-70">Đặt câu hỏi về tài liệu phía dưới để bắt đầu.</p>
           </div>
         ) : (

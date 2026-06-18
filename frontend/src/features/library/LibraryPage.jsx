@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { FileText, FileType, Trash2, Plus, LayoutGrid, Network } from 'lucide-react'
+import { FileType, Trash2, Plus, LayoutGrid, Network } from 'lucide-react'
+import { EmptyDocsArt } from '@/components/illustrations/EmptyArt'
 import { documentService } from '@/services/documents'
 import { Button } from '@/components/ui/Button'
 import { Card } from '@/components/ui/Card'
@@ -82,9 +83,10 @@ export function LibraryPage() {
       </div>
 
       {docs.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-64 text-[var(--text-muted)]">
-          <FileText size={40} className="mb-3 opacity-40" />
-          <p className="text-sm">Chưa có tài liệu nào. Upload tài liệu đầu tiên.</p>
+        <div className="flex flex-col items-center justify-center h-64 text-[var(--text-muted)] decor-dotgrid">
+          <EmptyDocsArt size={120} className="text-[var(--accent)] opacity-80 mb-2" />
+          <p className="font-display text-lg text-[var(--text-primary)]">Chưa có tài liệu nào</p>
+          <p className="text-sm">Upload tài liệu đầu tiên để bắt đầu.</p>
         </div>
       ) : view === 'grid' ? (
         <div className="grid gap-3 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">

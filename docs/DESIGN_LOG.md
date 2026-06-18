@@ -468,3 +468,73 @@ Algorithm: all-pairs cosine similarity giữa document centroid embeddings (đã
 - [x] Q&A typewriter cursor
 - [x] SummaryPanel skeleton (upgrade to shimmer)
 - [x] Score bar animation (RelevancePanel)
+
+---
+
+## Designer Worker — Pass 4 (2026-06-18): Decorative & Vibrancy Layer
+
+> Mục tiêu: làm web sinh động hơn (pattern/màu phụ/animation/illustration/typography) **mà KHÔNG phá** hệ thống đã confirm. Nguyên tắc xuyên suốt: **vùng đọc/Q&A giữ tĩnh & sạch; chỉ trang trí ở vùng marketing/auth/upload/empty-state/sidebar.** Đây là SPEC để Frontend implement sau khi PM duyệt — chưa code.
+
+### Nguyên tắc phân vùng trang trí
+| Vùng | Mức trang trí | Lý do |
+|---|---|---|
+| Auth / Landing / Upload / Empty-state | **Cao** — pattern, gradient, illustration, display font | Chưa đọc nội dung → cần "wow", tạo nhận diện |
+| Sidebar / Header chrome | **Vừa** — accent phụ, micro-interaction | Khung điều hướng, không phải nội dung |
+| Reading area / Q&A / KG canvas | **Tối thiểu** — chỉ giữ nội dung | Đọc lâu, công thức → mọi họa tiết = nhiễu |
+
+### A. Palette mở rộng (thêm token, KHÔNG đổi `--accent` brand)
+Giữ `--accent` indigo (#4F46E5 neutral / #818CF8 dark / #B45309 cream) làm brand cho mọi action chính. **Thêm**:
+
+| Token | neutral | dark | cream | Dùng cho |
+|---|---|---|---|---|
+| `--accent-2` (secondary) | `#06B6D4` (cyan-500) | `#22D3EE` | `#0E7490` | Illustration, biểu đồ, highlight phụ — KHÔNG dùng cho nút primary |
+| `--accent-2-soft` | `#CFFAFE` | `rgba(34,211,238,.14)` | `#CFFAFE` | Nền chip/badge phụ |
+| `--decor-grid` | `rgba(79,70,229,.05)` | `rgba(129,140,248,.07)` | `rgba(180,83,9,.05)` | Màu pattern dot/grid (rất mờ) |
+| `--gradient-hero` | `linear-gradient(135deg,#4F46E5 0%,#06B6D4 100%)` | `linear-gradient(135deg,#818CF8,#22D3EE)` | `linear-gradient(135deg,#B45309,#D97706)` | Nền hero auth/landing |
+
+Lý do cyan làm phụ: bổ trợ (analogous-cool) với indigo, gợi cảm giác "tri thức/khoa học", tương phản tốt mà không chọi brand. Contrast: dùng `--accent-2` chủ yếu cho mảng lớn/illustration, text trên nền cần kiểm WCAG AA riêng.
+
+### B. Pattern / họa tiết (chủ đề học thuật)
+- **Dot-grid** (radial-gradient, không ảnh): chấm 1px, khoảng cách ~22px, màu `--decor-grid`, opacity ≤ 0.06. Dùng: nền trang Auth, Upload, Empty-state. **Reading area: không.**
+- **Academic glyph motif**: SVG mờ các ký hiệu toán (∑ ∫ √ ‖x‖ π) + node/edge kiểu knowledge-graph, opacity 0.04–0.05, đặt góc hero/empty-state làm "texture" gợi đúng chủ đề tài liệu học thuật + KG. Tĩnh, không animate trong vùng có chữ.
+- **Sidebar footer**: 1 dải dot-grid mờ phía dưới logo cho đỡ trống — mức vừa.
+- Quy tắc: pattern luôn dưới `z-index` nội dung, `pointer-events:none`, opacity đủ thấp để text trên nó vẫn đạt contrast AA.
+
+### C. Typography (điểm nhấn user quan tâm)
+Giữ confirmed: **Inter** (UI) + **Merriweather** (reading). **Thêm 1 display font cho heading marketing/hero/empty-state** (KHÔNG đổi body):
+- Đề xuất **"Fraunces"** (serif display, có optical sizing, cá tính học thuật-cổ điển nhưng hiện đại) HOẶC **"Spectral"** — chỉ dùng ở H1/H2 landing/auth/empty-state, size ≥ 28px.
+- Token: `--font-display`. Scale gợi ý: hero H1 40–56px / weight 600 / line-height 1.1 / letter-spacing -0.01em.
+- **Cảnh báo tiếng Việt (cần verify)**: kiểm tra dấu tiếng Việt (ặ, ỡ, ệ…) render đúng ở Merriweather & display font. Nếu Merriweather xếp dấu chưa đẹp với nội dung VN dài → cân nhắc **"Lora"** hoặc **"Be Vietnam Pro"** (VN-first) cho `.prose-reading`. Đây là điểm cần test thực tế trước khi chốt.
+- **Nguồn font (perf + privacy)**: hiện đang `@import` Google Fonts trong index.css — chặn render + lộ IP người dùng cho Google (mâu thuẫn định vị "privacy-first/BYOK"). **Khuyến nghị self-host** (woff2 trong `/public/fonts` + `@font-face` + `font-display: swap`), hoặc tối thiểu thêm `<link rel="preconnect">`. Chỉ nạp weight thực dùng.
+
+### D. Transition / Animation (bổ sung, theo nguyên tắc đã có)
+Tuân thủ `## Animation Spec` cũ + `prefers-reduced-motion` (đã có trong index.css). Thêm:
+| Hiệu ứng | Trigger | Spec | Vùng |
+|---|---|---|---|
+| Aurora/gradient mesh động | mount | gradient `--gradient-hero` dịch chuyển rất chậm (20–30s, ease-in-out, infinite) | Hero auth/landing |
+| Float nhẹ illustration | mount | translateY ±6px, 6s ease-in-out alt | Empty-state |
+| Dot-grid parallax (tuỳ chọn) | scroll | dịch ≤8px theo scroll | Landing |
+| Stagger card vào | list mount | dùng `animate-tag-in` đã có, delay 40ms/item | Library/Upload list |
+Tất cả hiệu ứng nền/lặp **phải tắt** khi `prefers-reduced-motion: reduce`. Vùng đọc/Q&A: không thêm animation nền.
+
+### E. Illustration / hình ảnh
+- **Có nên**: CÓ, nhưng chỉ **line-art SVG đơn sắc** (dùng `--accent`/`--accent-2`), nhẹ, không raster nặng. Chủ đề: sách mở, trang giấy + công thức, mạng node-edge (tri thức). Dùng ở **empty-state** (chưa có tài liệu/câu hỏi), **onboarding**, **404**.
+- **KHÔNG**: ảnh stock/raster lớn ở vùng đọc; không hero image nặng làm chậm LCP.
+- Nguồn: tự vẽ SVG hoặc bộ open (unDraw — chỉnh màu theo accent). Inline SVG để đổi màu theo theme.
+
+### F. Lỗi nhất quán phát hiện (cần sửa nhỏ)
+- `frontend/index.html` đặt `theme-color #6c5ce7` **không khớp** accent thật `#4F46E5`. → Sửa về `#4F46E5` (hoặc theo theme mặc định).
+
+### Khuyến nghị ưu tiên (impact cao / chi phí thấp trước)
+1. **P0 (rẻ, làm trước)**: sửa theme-color (#4F46E5); thêm dot-grid pattern cho Auth + Empty-state; self-host/preconnect font; thêm `--accent-2` + `--gradient-hero` tokens.
+2. **P1**: display font (`--font-display`) cho heading auth/landing/empty-state + refine type scale; line-art SVG empty-states.
+3. **P2**: aurora gradient động ở hero auth/landing; pattern sidebar footer; verify & (nếu cần) đổi reading font cho tiếng Việt.
+
+> **Quyết định cần PM/user chốt trước khi Frontend implement**: (1) chọn display font (Fraunces vs Spectral); (2) reading font tiếng Việt giữ Merriweather hay đổi Lora/Be Vietnam Pro; (3) self-host font hay giữ Google Fonts. Ba câu này ảnh hưởng asset + privacy.
+
+### Pass 4 — Quyết định đã chốt (user, 2026-06-18)
+| Vấn đề | Chốt | Ghi chú |
+|---|---|---|
+| Display font (heading marketing/empty-state) | **Fraunces** | `--font-display`, chỉ H1/H2 vùng marketing/auth/empty-state; body vẫn Inter |
+| Reading font tiếng Việt | **Giữ Merriweather** | ⚠️ Frontend/Tester verify dấu tiếng Việt (ặ, ỡ, ệ) render đẹp khi đọc dài; nếu lỗi → escalate lại Designer |
+| Font hosting | **Giữ Google Fonts** (`@import`) | Chấp nhận đánh đổi privacy/perf ở giai đoạn này; thêm Fraunces vào dòng `@import` hiện có. Có thể self-host sau nếu cần |

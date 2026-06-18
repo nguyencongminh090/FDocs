@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=Merriweather:ital,wght@0,400;0,700;1,400&display=swap');
 
 @import "tailwindcss";
 
@@ -23,6 +23,14 @@
   --error-bg:     #FEF2F2;
   --info:         #3B82F6;
   --info-bg:      #EFF6FF;
+
+  /* Decorative layer (Pass 4) — secondary accent, gradients, pattern */
+  --font-display:    'Fraunces', Georgia, serif;
+  --accent-2:          #06B6D4;
+  --accent-2-soft:     #CFFAFE;
+  --decor-grid:        rgba(79, 70, 229, 0.14);   /* faint base */
+  --decor-grid-strong: rgba(79, 70, 229, 0.30);   /* brightened under cursor spotlight */
+  --gradient-hero:     linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
 }
 
 [data-theme="cream"] {
@@ -44,6 +52,12 @@
   --error-bg:     #FEF2F2;
   --info:         #2563EB;
   --info-bg:      #EFF6FF;
+
+  --accent-2:          #0E7490;
+  --accent-2-soft:     #CFFAFE;
+  --decor-grid:        rgba(180, 83, 9, 0.14);
+  --decor-grid-strong: rgba(180, 83, 9, 0.30);
+  --gradient-hero:     linear-gradient(135deg, #B45309 0%, #D97706 100%);
 }
 
 [data-theme="dark"] {
@@ -65,6 +79,12 @@
   --error-bg:     rgba(239, 68, 68, 0.12);
   --info:         #60A5FA;
   --info-bg:      rgba(59, 130, 246, 0.12);
+
+  --accent-2:          #22D3EE;
+  --accent-2-soft:     rgba(34, 211, 238, 0.14);
+  --decor-grid:        rgba(129, 140, 248, 0.16);
+  --decor-grid-strong: rgba(129, 140, 248, 0.34);
+  --gradient-hero:     linear-gradient(135deg, #818CF8 0%, #22D3EE 100%);
 }
 
 @layer base {
@@ -152,6 +172,36 @@
   animation: tagIn 250ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
   /* override theme-switch transition */
   transition-property: box-shadow, border-color;
+}
+
+/* ── Display font (Pass 4) — headings ở vùng marketing/auth/empty ── */
+.font-display { font-family: var(--font-display); }
+
+/* ── Decorative dot-grid (Pass 4) ────────────────────────── */
+/* Subtle academic texture for auth / empty states only — never the reading area.
+   Sits below content; pointer-events off so it can't intercept clicks. */
+.decor-dotgrid {
+  background-image: radial-gradient(var(--decor-grid) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+}
+.decor-dotgrid > * { position: relative; z-index: 1; }
+
+/* Cursor spotlight: a brighter dot layer revealed only around the pointer.
+   --mx/--my are set per-frame by a JS hook (rAF-throttled). Auth zone only. */
+.decor-spotlight { position: relative; }
+.decor-spotlight::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: radial-gradient(var(--decor-grid-strong) 1.5px, transparent 1.5px);
+  background-size: 22px 22px;
+  -webkit-mask-image: radial-gradient(circle 200px at var(--mx, 50%) var(--my, 50%), #000 0%, transparent 72%);
+          mask-image: radial-gradient(circle 200px at var(--mx, 50%) var(--my, 50%), #000 0%, transparent 72%);
+}
+@media (prefers-reduced-motion: reduce) {
+  .decor-spotlight::before { display: none; }   /* keep static dots, drop the dynamic follow */
 }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
