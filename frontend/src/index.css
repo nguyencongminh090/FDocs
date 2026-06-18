@@ -30,7 +30,7 @@
   --accent-2-soft:     #CFFAFE;
   --decor-grid:        rgba(79, 70, 229, 0.14);   /* faint base */
   --decor-grid-strong: rgba(79, 70, 229, 0.30);   /* brightened under cursor spotlight */
-  --gradient-hero:     linear-gradient(135deg, #4F46E5 0%, #06B6D4 100%);
+  --gradient-hero:     linear-gradient(135deg, #4F46E5 0%, #A78BFA 100%);
 }
 
 [data-theme="cream"] {
@@ -84,7 +84,7 @@
   --accent-2-soft:     rgba(34, 211, 238, 0.14);
   --decor-grid:        rgba(129, 140, 248, 0.16);
   --decor-grid-strong: rgba(129, 140, 248, 0.34);
-  --gradient-hero:     linear-gradient(135deg, #818CF8 0%, #22D3EE 100%);
+  --gradient-hero:     linear-gradient(135deg, #6366F1 0%, #A78BFA 100%);
 }
 
 @layer base {
@@ -203,6 +203,13 @@
 @media (prefers-reduced-motion: reduce) {
   .decor-spotlight::before { display: none; }   /* keep static dots, drop the dynamic follow */
 }
+
+/* ── Float (Pass 4 / P2) — gentle bob for empty-state art ── */
+@keyframes floatY {
+  from { transform: translateY(-6px); }
+  to   { transform: translateY(6px); }
+}
+.animate-float { animation: floatY 6s ease-in-out infinite alternate; }
 
 /* ── Scrollbar ───────────────────────────────────────────── */
 ::-webkit-scrollbar { width: 6px; }

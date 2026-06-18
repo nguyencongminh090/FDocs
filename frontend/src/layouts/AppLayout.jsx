@@ -77,7 +77,7 @@ export function AppLayout() {
           </SidebarLink>
         </nav>
 
-        <div className="p-2 border-t border-[var(--border)] flex flex-col gap-1 shrink-0">
+        <div className="p-2 border-t border-[var(--border)] flex flex-col gap-1 shrink-0 decor-dotgrid">
           <NavLink
             to="/settings"
             title={collapsed ? (hasKey ? 'Cài đặt' : 'Cài đặt — chưa có Gemini Key') : undefined}

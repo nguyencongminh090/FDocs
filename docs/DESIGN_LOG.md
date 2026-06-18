@@ -538,3 +538,34 @@ Tất cả hiệu ứng nền/lặp **phải tắt** khi `prefers-reduced-motion
 | Display font (heading marketing/empty-state) | **Fraunces** | `--font-display`, chỉ H1/H2 vùng marketing/auth/empty-state; body vẫn Inter |
 | Reading font tiếng Việt | **Giữ Merriweather** | ⚠️ Frontend/Tester verify dấu tiếng Việt (ặ, ỡ, ệ) render đẹp khi đọc dài; nếu lỗi → escalate lại Designer |
 | Font hosting | **Giữ Google Fonts** (`@import`) | Chấp nhận đánh đổi privacy/perf ở giai đoạn này; thêm Fraunces vào dòng `@import` hiện có. Có thể self-host sau nếu cần |
+
+### Pass 4 — Cập nhật `--gradient-hero` (2026-06-18): bỏ cyan, về mono-brand tím
+
+**Vấn đề** (user feedback, verify bằng harness headless): aurora indigo→cyan ở opacity rõ (.35) khiến nền auth ngả **teal/sky**, lệch nhận diện indigo của FDocs (dark còn xanh-lục rõ hơn). Đầu cyan `--accent-2` không bổ trợ tốt khi làm mảng nền lớn.
+
+**Quyết định: Phương án A — indigo → violet (monochrome brand).** Giữ toàn gradient trong họ tím → coherent, sang, không "đổi màu". So sánh A/C/hiện-tại trên light+dark: A giữ bản sắc tốt nhất mà vẫn có chuyển màu sống động (hơn C blue-violet hơi đơn điệu).
+
+`--gradient-hero` mới:
+| Theme | Cũ (có cyan) | **Mới (mono tím)** |
+|---|---|---|
+| neutral | `#4F46E5 → #06B6D4` | **`#4F46E5 → #A78BFA`** |
+| dark | `#818CF8 → #22D3EE` | **`#6366F1 → #A78BFA`** |
+| cream | `#B45309 → #D97706` | **giữ nguyên** (đã là mono ấm, không dính cyan) |
+
+**Opacity aurora**: hạ `.35 → .30` (gradient mono-brand đỡ gắt hơn cyan nên .30 đủ "sống" mà không lấn card).
+
+**`--accent-2` (cyan #06B6D4) GIỮ NGUYÊN** — vẫn dùng cho illustration/spark/biểu đồ. Quyết định này CHỈ đổi `--gradient-hero`.
+
+Handoff Frontend: đổi 2 dòng `--gradient-hero` (neutral, dark) trong index.css + hạ `.auth-aurora` opacity `.35 → .30`. Cream giữ nguyên. Verify card+text vẫn nổi.
+
+### Pass 4 — Quyết định cuối: bỏ aurora hoàn toàn (2026-06-18)
+
+**Quyết định (user)**: Dù đã đổi sang mono-violet (phương án A) trông tốt hơn cyan, user vẫn quyết định **không dùng aurora gradient** — lý do: gradient nền lớn ở auth không phù hợp phong cách tổng thể sản phẩm (mục tiêu reading app học thuật, tối giản). Gradient hero làm auth trông "landing page commercial" hơn "scholarly tool".
+
+**Thực hiện**:
+- Xóa `<div className="auth-aurora" />` khỏi `AuthLayout.jsx`
+- Xóa `.auth-aurora {}` block và `@keyframes auroraShift` khỏi `index.css`
+- **Giữ** token `--gradient-hero` (design token, có thể tái dùng cho button/banner nhỏ sau này)
+- **Giữ** tất cả: dot-grid, cursor spotlight, Fraunces, float animation, illustration, sidebar footer dot-grid
+
+**Trạng thái auth page sau P2**: nền sạch (`--bg-base`) + dot-grid tĩnh + spotlight theo chuột — đủ character mà không lấn nội dung card.

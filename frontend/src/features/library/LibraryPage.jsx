@@ -84,7 +84,7 @@ export function LibraryPage() {
 
       {docs.length === 0 ? (
         <div className="flex flex-col items-center justify-center h-64 text-[var(--text-muted)] decor-dotgrid">
-          <EmptyDocsArt size={120} className="text-[var(--accent)] opacity-80 mb-2" />
+          <EmptyDocsArt size={120} className="text-[var(--accent)] opacity-80 mb-2 animate-float" />
           <p className="font-display text-lg text-[var(--text-primary)]">Chưa có tài liệu nào</p>
           <p className="text-sm">Upload tài liệu đầu tiên để bắt đầu.</p>
         </div>
