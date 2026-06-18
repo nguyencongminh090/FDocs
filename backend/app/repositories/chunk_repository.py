@@ -35,6 +35,21 @@ class ChunkRepository:
         )
         return list(result.scalars().all())
 
+    async def get_similar_lexical(self, query_text: str, document_id: uuid.UUID, top_k: int = 5) -> list[Chunk]:
+        """Lexical (full-text) retrieval over chunk content, scoped to one document.
+        'simple' config = tokenize without stemming — safe for mixed VI/EN academic text
+        and ideal for exact term/acronym matches that dense embeddings miss. Computed
+        on-the-fly (no tsvector column/index): per-doc chunk counts are small."""
+        result = await self.db.execute(
+            select(Chunk)
+            .where(Chunk.document_id == document_id)
+            .where(text("to_tsvector('simple', chunks.content) @@ plainto_tsquery('simple', :q)"))
+            .order_by(text("ts_rank(to_tsvector('simple', chunks.content), plainto_tsquery('simple', :q)) DESC"))
+            .limit(top_k)
+            .params(q=query_text)
+        )
+        return list(result.scalars().all())
+
     async def get_doc_embedding_centroid(self, document_id: uuid.UUID) -> list[float] | None:
         result = await self.db.execute(
             text("SELECT avg(embedding) FROM chunks WHERE document_id = :doc_id"),

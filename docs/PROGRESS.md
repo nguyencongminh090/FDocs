@@ -665,3 +665,24 @@ docker compose up -d
 - [ ] Áp dụng cho: `generate_summary` (map + reduce), `score_relevance` (explanation), `answer_question`, `answer_question_stream`
 - [ ] **Không** áp dụng cho: `extract_keywords`, `generate_knowledge_graph` (labels là ngôn ngữ tài liệu)
 - [ ] `pytest backend/` — số lượng passed không giảm
+
+---
+
+## Phase: Q&A False-Positive Reduction (RAG) — 2026-06-18
+
+**Vấn đề:** Q&A trả "Tài liệu không đề cập" cho câu hỏi thực ra CÓ liên quan (false-positive), do retrieval recall thấp + prompt 2-trạng-thái quá cứng. Ràng buộc bất biến: không được tăng hallucination/lan man.
+
+**Đầu ra nghiên cứu:** `docs/RESEARCH_qa_false_positive.md` — root cause: chủ yếu RETRIEVAL (top_k=5 semantic thuần, không hybrid/re-rank), prompt khuếch đại. Loại trừ embedding 768-dim.
+
+### Đã hoàn thành (live trên app)
+- [x] **Backend GĐ1** — `qa_service.py`: top_k 5→12 (`QA_TOP_K`), candidate pool `QA_FETCH_K=30`.
+- [x] **Backend GĐ2** — Hybrid retrieval: semantic (cosine) + lexical (`get_similar_lexical`, Postgres full-text 'simple') fuse bằng **RRF** (`_rrf_fuse`, `RRF_K=60`) → top 12. (MMR của GĐ1 bị thay vì xung đột với hybrid.) Lexical on-the-fly, không migration. Unit test `test_rrf_fuse_dedups_and_ranks`.
+- [x] **Prompt Eng spec** — `docs/PROMPT_qa_versions.md`: 3 bản strict/balanced/permissive, logic 3-trạng-thái (trả lời / liên quan một phần / từ chối), giữ baseline chống hallucination.
+- [x] **Backend áp prompt BALANCED** — `_qa_prompt` + dòng GROUNDING (`_SYSTEM_TEXT`). Đổi đúng 2 chỗ.
+
+### Còn lại
+- [x] **Validation: UAT người thật** (2026-06-18) — phản hồi định tính: tốt hơn rõ rệt so với bản cũ, không phát hiện hallucination. Chốt **balanced** làm mặc định.
+- [ ] (Tùy chọn về sau) đòn bẩy tinh chỉnh nếu cần: prompt strict (nếu xuất hiện hallucination) / permissive (nếu còn từ chối sai) — chỉ đổi text `_qa_prompt`, rollback tức thì.
+- [ ] (GĐ3 — chỉ nếu UAT chưa đạt) re-rank cross-encoder / HyDE.
+
+**Files chạm:** `backend/app/services/qa_service.py`, `backend/app/repositories/chunk_repository.py`, `backend/app/services/gemini_service.py`, `backend/tests/test_qa_api.py`, `docs/RESEARCH_qa_false_positive.md`, `docs/PROMPT_qa_versions.md`.

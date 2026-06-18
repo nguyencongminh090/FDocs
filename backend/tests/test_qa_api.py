@@ -24,10 +24,12 @@ class _Doc:
 
 
 class _Chunk:
-    def __init__(self, idx, content):
+    def __init__(self, idx, content, embedding=None):
         self.id = uuid.uuid4()
         self.chunk_index = idx
         self.content = content
+        # MMR selection in qa_service reads .embedding; give each chunk a distinct vector.
+        self.embedding = embedding if embedding is not None else [0.1 * (idx + 1), 0.2, 0.3]
 
 
 class _QARow:
@@ -53,6 +55,9 @@ def _make_fakes(doc_owner_id):
 
         async def get_similar(self, embedding, doc_id, top_k=5):
             return [_Chunk(0, "Linear algebra is the study of vectors."), _Chunk(1, "Matrices represent transforms.")]
+
+        async def get_similar_lexical(self, query_text, doc_id, top_k=5):
+            return [_Chunk(2, "Eigenvalues describe scaling along eigenvectors.")]
 
     class FakeQARepo:
         def __init__(self, db=None):
@@ -199,3 +204,18 @@ class TestQAStreamError:
         assert "[DONE]" not in body                 # success terminator NOT sent on error
         assert created["called"] is False           # truncated answer not persisted
         app.dependency_overrides.clear()
+
+
+def test_rrf_fuse_dedups_and_ranks():
+    """RRF: a chunk in both lists outranks one in a single list; results deduped by id."""
+    class _C:
+        def __init__(self, cid):
+            self.id = cid
+
+    a, b, c = _C("a"), _C("b"), _C("c")
+    # semantic ranks a>b>c ; lexical ranks c>a. a and c appear in BOTH lists.
+    fused = qa_service._rrf_fuse([[a, b, c], [c, a]], rrf_k=60)
+    ids = [x.id for x in fused]
+    assert set(ids) == {"a", "b", "c"}   # deduped
+    assert ids[0] == "a"                 # rank1 semantic + rank2 lexical → highest fused score
+    assert ids[-1] == "b"                # only in one list → lowest
