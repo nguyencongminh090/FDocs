@@ -42,3 +42,13 @@ async def get_history(
     db: AsyncSession = Depends(get_db),
 ):
     return await QAService(db).get_history(doc_id, user_id)
+
+
+@router.delete("")
+async def clear_history(
+    doc_id: uuid.UUID,
+    user_id: uuid.UUID = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    await QAService(db).clear_history(doc_id, user_id)
+    return {"deleted": True}

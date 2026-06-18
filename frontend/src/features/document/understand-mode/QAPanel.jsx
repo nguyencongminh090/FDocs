@@ -17,8 +17,6 @@ export function QAPanel({ docId }) {
   const [error, setError] = useState('')
   const scrollContainerRef = useRef(null)
   const bottomRef = useRef(null)
-  // Track IDs cleared locally so backend reload after stream doesn't restore them
-  const excludedIdsRef = useRef(new Set())
 
   const hasContent = history.length > 0 || streaming || !!error
 
@@ -27,9 +25,7 @@ export function QAPanel({ docId }) {
   }, [])
 
   useEffect(() => {
-    qaService.history(docId).then((data) =>
-      setHistory(data.filter((item) => !excludedIdsRef.current.has(String(item.id))))
-    )
+    qaService.history(docId).then(setHistory)
   }, [docId])
 
   // Issue 2: scroll before paint to prevent flash-to-top on history reload
@@ -48,11 +44,15 @@ export function QAPanel({ docId }) {
     return () => observer.disconnect()
   }, [hasContent, scrollToBottom])
 
-  const handleClear = () => {
-    history.forEach((item) => excludedIdsRef.current.add(String(item.id)))
-    setHistory([])
-    setError('')
-    setStreamText('')
+  const handleClear = async () => {
+    try {
+      await qaService.clearHistory(docId)
+      setHistory([])
+      setError('')
+      setStreamText('')
+    } catch {
+      setError('Không thể xóa lịch sử. Vui lòng thử lại.')
+    }
   }
 
   const submit = async (e) => {
@@ -79,7 +79,7 @@ export function QAPanel({ docId }) {
         setStreaming(false)
         setStreamText('')
         const updated = await qaService.history(docId)
-        setHistory(updated.filter((item) => !excludedIdsRef.current.has(String(item.id))))
+        setHistory(updated)
         cleanup?.()
       },
       (info) => {
@@ -89,15 +89,15 @@ export function QAPanel({ docId }) {
   }
 
   return (
-    <div className="flex flex-col h-full gap-0 px-5 pt-5 pb-4">
+    <div className="flex flex-col h-full gap-0 pt-5 pb-4">
       <div ref={scrollContainerRef} className="flex-1 min-h-0 overflow-y-auto">
         {!hasContent ? (
-          <div className="flex flex-col items-center justify-center h-full gap-2 text-center py-8">
+          <div className="flex flex-col items-center justify-center h-full gap-2 text-center py-8 px-5">
             <p className="text-sm text-[var(--text-muted)]">Chưa có câu hỏi nào.</p>
             <p className="text-xs text-[var(--text-muted)] opacity-70">Đặt câu hỏi về tài liệu phía dưới để bắt đầu.</p>
           </div>
         ) : (
-          <div className="flex flex-col justify-end min-h-full gap-4 pb-4">
+          <div className="flex flex-col justify-end min-h-full gap-4 pb-4 px-5">
             {history.length > 0 && !streaming && (
               <div className="flex justify-end pb-2">
                 <Button size="sm" variant="ghost" onClick={handleClear}>
@@ -109,8 +109,8 @@ export function QAPanel({ docId }) {
 
             {history.map((item) => (
               <div key={item.id} className="flex flex-col gap-2">
-                <div className="self-end flex flex-col items-end gap-0.5">
-                  <div className="max-w-[80%] rounded-xl rounded-br-sm bg-[var(--accent)] text-[var(--accent-fg)] px-4 py-2 text-sm">
+                <div className="flex flex-col items-end gap-0.5">
+                  <div className="max-w-[80%] rounded-xl rounded-br-sm bg-[var(--accent)] text-[var(--accent-fg)] px-4 py-2 text-sm break-words">
                     {item.question}
                   </div>
                   {item.created_at && (
@@ -120,8 +120,8 @@ export function QAPanel({ docId }) {
                   )}
                 </div>
                 {item.answer && (
-                  <div className="self-start flex flex-col items-start gap-0.5">
-                    <div className="max-w-[90%] rounded-xl rounded-bl-sm bg-[var(--bg-muted)] px-4 py-3 text-sm text-[var(--text-primary)] prose-reading leading-relaxed">
+                  <div className="flex flex-col items-start gap-0.5">
+                    <div className="max-w-[90%] rounded-xl rounded-bl-sm bg-[var(--bg-muted)] px-4 py-3 text-sm text-[var(--text-primary)] prose-reading leading-relaxed break-words overflow-x-auto">
                       <MarkdownLatex>{item.answer}</MarkdownLatex>
                     </div>
                   </div>
@@ -130,14 +130,14 @@ export function QAPanel({ docId }) {
             ))}
 
             {streaming && streamText && (
-              <div className="self-start max-w-[90%] rounded-xl rounded-bl-sm bg-[var(--bg-muted)] px-4 py-3 text-sm text-[var(--text-primary)] prose-reading leading-relaxed">
+              <div className="self-start max-w-[90%] rounded-xl rounded-bl-sm bg-[var(--bg-muted)] px-4 py-3 text-sm text-[var(--text-primary)] prose-reading leading-relaxed break-words overflow-x-auto">
                 <MarkdownLatex>{streamText}</MarkdownLatex>
                 <span className="inline-block w-1 h-4 bg-[var(--accent)] animate-pulse ml-0.5 align-middle" />
               </div>
             )}
 
             {error && (
-              <div className="self-start max-w-[90%] rounded-xl rounded-bl-sm border border-[var(--error)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[var(--error)]">
+              <div className="self-start max-w-[90%] rounded-xl rounded-bl-sm border border-[var(--error)] bg-[var(--error-bg)] px-4 py-3 text-sm text-[var(--error)] break-words">
                 {error}
               </div>
             )}
@@ -147,7 +147,7 @@ export function QAPanel({ docId }) {
         )}
       </div>
 
-      <form onSubmit={submit} className="flex gap-2 pt-4 border-t border-[var(--border)]">
+      <form onSubmit={submit} className="flex gap-2 pt-4 px-5 border-t border-[var(--border)]">
         <input
           value={question}
           onChange={(e) => setQuestion(e.target.value)}

@@ -7,6 +7,9 @@ export const qaService = {
   history: (docId) =>
     api.get(`/documents/${docId}/qa`).then((r) => r.data),
 
+  clearHistory: (docId) =>
+    api.delete(`/documents/${docId}/qa`).then((r) => r.data),
+
   // onError(info) is called for both a non-OK initial response (e.g. 429/502 raised
   // before streaming starts) and an in-band error frame emitted mid-stream
   // (`data: {"error","detail"}`), since once HTTP 200 is committed the backend can

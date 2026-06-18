@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.qa_history import QAHistory
@@ -19,6 +19,10 @@ class QARepository:
 
     async def get_by_document(self, document_id: uuid.UUID) -> list[QAHistory]:
         result = await self.db.execute(
-            select(QAHistory).where(QAHistory.document_id == document_id).order_by(QAHistory.created_at.desc())
+            select(QAHistory).where(QAHistory.document_id == document_id).order_by(QAHistory.created_at.asc())
         )
         return list(result.scalars().all())
+
+    async def delete_by_document(self, document_id: uuid.UUID) -> None:
+        await self.db.execute(delete(QAHistory).where(QAHistory.document_id == document_id))
+        await self.db.commit()
